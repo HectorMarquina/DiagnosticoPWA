@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Personas con reqres.in</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>Gestión de Personas</h1>
+        <div class="row">
+            <div class="col-md-6">
+                <form id="personForm">
+                    <div class="form-group">
+                        <label for="nombre">Nombre:</label>
+                        <input type="text" class="form-control" id="nombre">
+                    </div>
+                    <div class="form-group">
+                        <label for="trabajo">Email:</label>
+                        <input type="text" class="form-control" id="email">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Guardar Persona</button>
+                </form>
+            </div>
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <h2>Listado de Personas</h2>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Email</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="peopleList"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="personModal" tabindex="-1" role="dialog" aria-labelledby="personModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="personModalLabel">Información de la Persona</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="personInfo"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editPersonModal" tabindex="-1" role="dialog" aria-labelledby="editPersonModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editPersonModalLabel">Editar Persona</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="editPersonForm">
+                        <div class="form-group">
+                            <label for="editNombre">Nombre:</label>
+                            <input type="text" class="form-control" id="editNombre">
+                        </div>
+                        <div class="form-group">
+                            <label for="editEmail">Email:</label>
+                            <input type="text" class="form-control" id="editEmail">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-primary" id="saveChangesButton">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        // obtener
+        function getPeople() {
+            return fetch('https://reqres.in/api/users')
+                .then(response => response.json())
+                .then(data => data.data)
+                .catch(error => console.error('Error al obtener la lista de personas:', error));
+        }
+
+        // crear
+        function createPerson(person) {
+            return fetch('https://reqres.in/api/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(person),
+            })
+                .then(response => response.json())
+                .catch(error => console.error('Error al crear persona:', error));
+        }
+
+        // eliminar
+        function deletePerson(id) {
+            return fetch(`https://reqres.in/api/users/${id}`, {
+                method: 'DELETE',
+            })
+                .then(response => response.json())
+                .catch(error => console.error('Error al eliminar persona:', error));
+        }
+
+        // actualizar
+        function updatePeopleTable() {
+            const peopleList = document.getElementById('peopleList');
+            peopleList.innerHTML = '';
+
+            getPeople()
+                .then(people => {
+                    people.forEach(person => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${person.id}</td>
+                            <td>${person.first_name} ${person.last_name}</td>
+                            <td>${person.email}</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="viewPerson(${person.id})">Ver</button>
+                                <button class="btn btn-warning" onclick="editPerson(${person.id})">Editar</button>
+                                <button class="btn btn-danger" onclick="deletePersonById(${person.id})">Eliminar</button>
+                            </td>
+                        `;
+                        peopleList.appendChild(row);
+                    });
+                });
+        }
+
+        // formulario
+        document.getElementById('personForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const nombre = document.getElementById('nombre').value;
+            const email = document.getElementById('email').value;
+
+            const person = { nombre, email };
+
+            createPerson(person)
+                .then(response => {
+                    console.log('Persona creada:', response);
+                    updatePeopleTable();
+                });
+        });
+
+        // Inicializar tabla
+        updatePeopleTable();
+
+        // ver 
+        function viewPerson(id) {
+            fetch(`https://reqres.in/api/users/${id}`)
+                .then(response => response.json())
+                .then(person => {
+                    const personInfo = `
+                        <p><strong>ID:</strong> ${person.data.id}</p>
+                        <p><strong>Nombre:</strong> ${person.data.first_name} ${person.data.last_name}</p>
+                        <p><strong>Email:</strong> ${person.data.email}</p>
+                        <p><strong>Avatar:</strong> <img src="${person.data.avatar}" alt="Avatar"></p>
+                    `;
+
+                    const modalContent = document.getElementById('personInfo');
+                    modalContent.innerHTML = personInfo;
+
+                    $('#personModal').modal('show');
+                })
+                .catch(error => console.error('Error al obtener la información de la persona:', error));
+        }
+
+        // editar
+        function editPerson(id) {
+            fetch(`https://reqres.in/api/users/${id}`)
+                .then(response => response.json())
+                .then(person => {
+                    document.getElementById('editNombre').value = person.data.first_name;
+                    document.getElementById('editEmail').value = person.data.email;
+
+                    const saveChangesButton = document.getElementById('saveChangesButton');
+                    saveChangesButton.setAttribute('data-id', id);
+
+                    $('#editPersonModal').modal('show');
+                })
+                .catch(error => console.error('Error al obtener la información de la persona:', error));
+        }
+
+       
+        document.getElementById('saveChangesButton').addEventListener('click', function() {
+            saveEditedPerson();
+        });
+
+        function saveEditedPerson() {
+            const editedNombre = document.getElementById('editNombre').value;
+            const editedEmail = document.getElementById('editEmail').value;
+
+            const saveChangesButton = document.getElementById('saveChangesButton');
+            const id = saveChangesButton.getAttribute('data-id');
+
+            const updatedPerson = { first_name: editedNombre, email: editedEmail };
+
+            fetch(`https://reqres.in/api/users/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updatedPerson),
+            })
+                .then(response => response.json())
+                .then(response => {
+                    console.log('Persona actualizada:', response);
+                    $('#editPersonModal').modal('hide');
+                    updatePeopleTable();
+                })
+                .catch(error => console.error('Error al actualizar la persona:', error));
+        }
+
+        // eliminar
+        function deletePersonById(id) {
+            deletePerson(id)
+                .then(response => {
+                    console.log('Persona eliminada:', response);
+                    updatePeopleTable();
+                });
+        }
+    </script>
+</body>
+</html>
